@@ -9,18 +9,18 @@ import (
 
 func TestRun(t *testing.T) {
 
-	t.Run("runner should run test based on execution data", func(t *testing.T) {
+	t.Run("runner should return error if Tracetest endpoint is not provided", func(t *testing.T) {
 		// given
-		runner := NewRunner()
+		runner, err := NewRunner()
 		execution := testkube.NewQueuedExecution()
 		execution.Content = testkube.NewStringTestContent("hello I'm test content")
 
 		// when
-		result, err := runner.Run(*execution)
+		_, err = runner.Run(*execution)
 
 		// then
-		assert.NoError(t, err)
-		assert.Equal(t, result.Status, testkube.ExecutionStatusPassed)
+		assert.Error(t, err)
+		assert.Equal(t, "TRACETEST_ENDPOINT variable was not found", err.Error())
 	})
 
 }
