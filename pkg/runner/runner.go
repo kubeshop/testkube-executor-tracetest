@@ -19,6 +19,7 @@ import (
 )
 
 const TRACETEST_ENDPOINT_VAR = "TRACETEST_ENDPOINT"
+const TRACETEST_OUTPUT_ENDPOINT_VAR = "TRACETEST_OUTPUT_ENDPOINT"
 
 func NewRunner() (*TracetestRunner, error) {
 	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Preparing Runner", ui.IconTruck))
@@ -52,6 +53,9 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 		return result, err
 	}
 
+	// Get TRACETEST_OUTPUT_ENDPOINT from execution variables
+	toe, _ := getTracetestOutputEndpointFromVars(envManager)
+
 	// Configure Tracetest CLI
 	err = configureTracetestCLI(te)
 	if err != nil {
@@ -75,7 +79,7 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 
 	// Run tracetest test from definition file
 	output, err := executor.Run("", "tracetest", envManager, args...)
-	runResult := model.Result{Output: string(output)}
+	runResult := model.Result{Output: string(output), ServerEndpoint: te, OutputEndpoint: toe}
 
 	if err != nil {
 		result.ErrorMessage = runResult.GetOutput()
@@ -99,6 +103,16 @@ func getTracetestEndpointFromVars(envManager *secret.EnvManager) (string, error)
 	v, ok := envManager.Variables[TRACETEST_ENDPOINT_VAR]
 	if !ok {
 		return "", fmt.Errorf("TRACETEST_ENDPOINT variable was not found")
+	}
+
+	return strings.ReplaceAll(v.Value, "\"", ""), nil
+}
+
+// Get TRACETEST_OUTPUT_ENDPOINT from execution variables
+func getTracetestOutputEndpointFromVars(envManager *secret.EnvManager) (string, error) {
+	v, ok := envManager.Variables[TRACETEST_OUTPUT_ENDPOINT_VAR]
+	if !ok {
+		return "", fmt.Errorf("TRACETEST_OUTPUT_ENDPOINT variable was not found")
 	}
 
 	return strings.ReplaceAll(v.Value, "\"", ""), nil

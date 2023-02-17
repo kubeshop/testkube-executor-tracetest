@@ -12,10 +12,15 @@ const (
 )
 
 type Result struct {
-	Output string
+	Output         string
+	ServerEndpoint string
+	OutputEndpoint string
 }
 
 func (r *Result) GetOutput() string {
+	if r.OutputEndpoint != "" {
+		return strings.ReplaceAll(r.Output, r.ServerEndpoint, r.OutputEndpoint)
+	}
 	return r.Output
 }
 
