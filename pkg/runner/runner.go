@@ -57,11 +57,11 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 	toe, _ := getTracetestOutputEndpointFromVars(envManager)
 
 	// Configure Tracetest CLI
-	err = configureTracetestCLI(te)
-	if err != nil {
-		outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Error when configuring the Tracetest CLI", ui.IconCross))
-		return result, err
-	}
+	// err = configureTracetestCLI(te)
+	// if err != nil {
+	//	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Error when configuring the Tracetest CLI", ui.IconCross))
+	//	return result, err
+	// }
 
 	// Get execution content file path
 	path, err := getContentPath(r.Params.DataDir, execution.Content, r.Fetcher)
@@ -72,7 +72,7 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 
 	// Prepare args for test run command
 	args := []string{
-		"test", "run", "--definition", path, "--wait-for-result", "--output", "pretty",
+		"test", "run", "--server-url", te, "--definition", path, "--wait-for-result", "--output", "pretty",
 	}
 	// Pass additional execution arguments to tracetest
 	args = append(args, execution.Args...)
