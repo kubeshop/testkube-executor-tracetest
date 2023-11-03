@@ -20,6 +20,7 @@ import (
 
 const TRACETEST_ENDPOINT_VAR = "TRACETEST_ENDPOINT"
 const TRACETEST_OUTPUT_ENDPOINT_VAR = "TRACETEST_OUTPUT_ENDPOINT"
+const TRACETEST_API_KEY_VAR = "TRACETEST_API_KEY"
 
 func NewRunner() (*TracetestRunner, error) {
 	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Preparing Runner", ui.IconTruck))
@@ -47,39 +48,38 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 	envManager.GetVars(envManager.Variables)
 
 	// Get TRACETEST_ENDPOINT from execution variables
-	te, err := getTracetestEndpointFromVars(envManager)
+	tracetestEndpoint, err := getVariable(envManager, TRACETEST_ENDPOINT_VAR)
 	if err != nil {
 		outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: TRACETEST_ENDPOINT variable was not found", ui.IconCross))
 		return result, err
 	}
 
 	// Get TRACETEST_OUTPUT_ENDPOINT from execution variables
-	toe, _ := getTracetestOutputEndpointFromVars(envManager)
+	tracetestOutputEndpoint, err := getVariable(envManager, TRACETEST_OUTPUT_ENDPOINT_VAR)
+	if err != nil {
+		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_OUTPUT_ENDPOINT variable was not found, assuming empty value")
+	}
 
-	// Configure Tracetest CLI
-	// err = configureTracetestCLI(te)
-	// if err != nil {
-	//	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Error when configuring the Tracetest CLI", ui.IconCross))
-	//	return result, err
-	// }
+	tracetestApiKey, err := getVariable(envManager, TRACETEST_API_KEY_VAR)
+	if err != nil {
+		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_API_KEY variable was not found, assuming empty value")
+	}
 
 	// Get execution content file path
-	path, err := getContentPath(r.Params.DataDir, execution.Content, r.Fetcher)
+	testFilePath, err := getContentPath(r.Params.DataDir, execution.Content, r.Fetcher)
 	if err != nil {
 		outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Error fetching the content file", ui.IconCross))
 		return result, err
 	}
 
-	// Prepare args for test run command
-	args := []string{
-		"test", "run", "--server-url", te, "--definition", path, "--wait-for-result", "--output", "pretty",
+	var output []byte
+	if tracetestApiKey == "" {
+		output, err = executeTestWithTracetestCore(envManager, execution, testFilePath, tracetestEndpoint)
+	} else {
+		output, err = executeTestWithTracetestCloud(envManager, execution, testFilePath, tracetestApiKey)
 	}
-	// Pass additional execution arguments to tracetest
-	args = append(args, execution.Args...)
 
-	// Run tracetest test from definition file
-	output, err := executor.Run("", "tracetest", envManager, args...)
-	runResult := model.Result{Output: string(output), ServerEndpoint: te, OutputEndpoint: toe}
+	runResult := model.Result{Output: string(output), ServerEndpoint: tracetestEndpoint, OutputEndpoint: tracetestOutputEndpoint}
 
 	if err != nil {
 		result.ErrorMessage = runResult.GetOutput()
@@ -98,41 +98,45 @@ func (r *TracetestRunner) GetType() runner.Type {
 	return runner.TypeMain
 }
 
-// Get TRACETEST_ENDPOINT from execution variables
-func getTracetestEndpointFromVars(envManager *secret.EnvManager) (string, error) {
-	v, ok := envManager.Variables[TRACETEST_ENDPOINT_VAR]
-	if !ok {
-		return "", fmt.Errorf("TRACETEST_ENDPOINT variable was not found")
-	}
-
-	return strings.ReplaceAll(v.Value, "\"", ""), nil
-}
-
-// Get TRACETEST_OUTPUT_ENDPOINT from execution variables
-func getTracetestOutputEndpointFromVars(envManager *secret.EnvManager) (string, error) {
-	v, ok := envManager.Variables[TRACETEST_OUTPUT_ENDPOINT_VAR]
-	if !ok {
-		return "", fmt.Errorf("TRACETEST_OUTPUT_ENDPOINT variable was not found")
-	}
-
-	return strings.ReplaceAll(v.Value, "\"", ""), nil
-}
-
-// Configure Tracetest CLI
-func configureTracetestCLI(endpoint string) error {
-	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Configuring Tracetest CLI with endpoint %s", ui.IconTruck, endpoint))
-	_, err := command.Run("tracetest", "configure", "--endpoint", endpoint, "--analytics=false")
+func executeTestWithTracetestCloud(envManager *secret.EnvManager, execution testkube.Execution, testFilePath, tracetestApiKey string) ([]byte, error) {
+	// setup config with API key
+	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Configuring Tracetest CLI with API Key", ui.IconTruck))
+	_, err := command.Run("tracetest", "configure", "--api-key", tracetestApiKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Get Tracetest Version
-	output, err := command.Run("tracetest", "version")
-	if err == nil {
-		outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Tracetest CLI version, %s ", ui.IconCheckMark, string(output)))
+	// Prepare args for test run command
+	args := []string{
+		"run", "test", "--file", testFilePath, "--output", "pretty",
+	}
+	// Pass additional execution arguments to tracetest
+	args = append(args, execution.Args...)
+
+	// Run tracetest test from definition file
+	return executor.Run("", "tracetest", envManager, args...)
+}
+
+func executeTestWithTracetestCore(envManager *secret.EnvManager, execution testkube.Execution, testFilePath, tracetestEndpoint string) ([]byte, error) {
+	// Prepare args for test run command
+	args := []string{
+		"run", "test", "--server-url", tracetestEndpoint, "--file", testFilePath, "--output", "pretty",
+	}
+	// Pass additional execution arguments to tracetest
+	args = append(args, execution.Args...)
+
+	// Run tracetest test from definition file
+	return executor.Run("", "tracetest", envManager, args...)
+}
+
+// Get variable from EnvManager
+func getVariable(envManager *secret.EnvManager, variableName string) (string, error) {
+	v, ok := envManager.Variables[variableName]
+	if !ok {
+		return "", fmt.Errorf(variableName + " variable was not found")
 	}
 
-	return err
+	return strings.ReplaceAll(v.Value, "\"", ""), nil
 }
 
 // Get execution content file path

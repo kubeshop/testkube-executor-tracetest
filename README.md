@@ -21,7 +21,7 @@ Here we will show how to use Testkube alongside Tracetest to run your tests in a
 In your Kubernetes cluster you should have:
 
 1. `Testkube`: Use HELM or the Testkube CLI to [install](https://kubeshop.github.io/testkube/installing) Testkube Server components in your cluster.
-2. `Trecetest Server`: You need a running instance of Tracetest which is going to be executing your assertions. To do so you can follow the instructions defined in the Tracetest [documentation](https://docs.tracetest.io/deployment/kubernetes).
+2. `Tracetest`: You need a running instance of [Tracetest](https://docs.tracetest.io/getting-started/installation/) or [Tracetest Core](https://docs.tracetest.io/core/getting-started/installation/) which is going to be executing your assertions. To do so you can follow the instructions defined in the Tracetest [documentation](https://docs.tracetest.io/getting-started/overview).
 3. `OpenTelemetry Instrumented Service`: In order to generate traces and spans, the service under test must support the basics for [propagation](https://opentelemetry.io/docs/reference/specification/context/api-propagators/) through HTTP requests, and also store traces and spans into a Data Store Backend (Jaeger, Grafana Tempo, OpenSearch, etc) or use the [OpenTelemetry Collector](https://docs.tracetest.io/configuration/overview#using-tracetest-without-a-trace-data-store).
 
 On your machine you should have:
