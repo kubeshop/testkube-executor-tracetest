@@ -20,7 +20,7 @@ import (
 
 const TRACETEST_ENDPOINT_VAR = "TRACETEST_ENDPOINT"
 const TRACETEST_OUTPUT_ENDPOINT_VAR = "TRACETEST_OUTPUT_ENDPOINT"
-const TRACETEST_API_KEY_VAR = "TRACETEST_API_KEY"
+const TRACETEST_TOKEN_VAR = "TRACETEST_TOKEN"
 
 func NewRunner() (*TracetestRunner, error) {
 	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Preparing Runner", ui.IconTruck))
@@ -60,9 +60,9 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_OUTPUT_ENDPOINT variable was not found, assuming empty value")
 	}
 
-	tracetestApiKey, err := getVariable(envManager, TRACETEST_API_KEY_VAR)
+	tracetestToken, err := getVariable(envManager, TRACETEST_TOKEN_VAR)
 	if err != nil {
-		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_API_KEY variable was not found, assuming empty value")
+		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_TOKEN variable was not found, assuming empty value")
 	}
 
 	// Get execution content file path
@@ -73,10 +73,10 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.Exe
 	}
 
 	var output []byte
-	if tracetestApiKey == "" {
+	if tracetestToken == "" {
 		output, err = executeTestWithTracetestCore(envManager, execution, testFilePath, tracetestEndpoint)
 	} else {
-		output, err = executeTestWithTracetestCloud(envManager, execution, testFilePath, tracetestApiKey)
+		output, err = executeTestWithTracetestCloud(envManager, execution, testFilePath, tracetestToken)
 	}
 
 	runResult := model.Result{Output: string(output), ServerEndpoint: tracetestEndpoint, OutputEndpoint: tracetestOutputEndpoint}
@@ -98,10 +98,10 @@ func (r *TracetestRunner) GetType() runner.Type {
 	return runner.TypeMain
 }
 
-func executeTestWithTracetestCloud(envManager *secret.EnvManager, execution testkube.Execution, testFilePath, tracetestApiKey string) ([]byte, error) {
+func executeTestWithTracetestCloud(envManager *secret.EnvManager, execution testkube.Execution, testFilePath, tracetestToken string) ([]byte, error) {
 	// setup config with API key
-	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Configuring Tracetest CLI with API Key", ui.IconTruck))
-	_, err := command.Run("tracetest", "configure", "--api-key", tracetestApiKey)
+	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Configuring Tracetest CLI with Token", ui.IconTruck))
+	_, err := command.Run("tracetest", "configure", "--token", tracetestToken)
 	if err != nil {
 		return nil, err
 	}
