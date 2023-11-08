@@ -1,0 +1,17 @@
+{
+  "testName": "tracetest-pokeshop",
+  "testType": "tracetest/test",
+  "name": "tracetest-pokeshop-execution",
+  "number": 1,
+  "variables": {
+    "TRACETEST_ENDPOINT": {
+      "name": "TRACETEST_ENDPOINT",
+      "value": "http://localhost:11633",
+      "type": "basic"
+    }
+  },
+  "content": {
+    "uri": "https://raw.githubusercontent.com/kubeshop/pokeshop/master/tracetest/tests/list.yaml",
+    "type": "file-uri"
+  }
+}
