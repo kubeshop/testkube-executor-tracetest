@@ -1,18 +1,23 @@
 NAME ?= testkube-executor-tracetest
 BIN_DIR ?= $(HOME)/bin
 
-build:
+help: Makefile ## show list of commands
+	@echo "Choose a command run:"
+	@echo ""
+	@awk 'BEGIN {FS = ":.*?## "} /[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-40s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
+
+build: ## build executable locally
 	go build -o $(BIN_DIR)/$(NAME) cmd/agent/main.go
 
 .PHONY: test cover build
 
-run:
+run: ## run the executor locally
 	EXECUTOR_PORT=8082 go run cmd/agent/main.go
 
-docker-build:
+docker-build: ## build docker image
 	docker build -t kubeshop/$(NAME) -f build/agent/Dockerfile .
 
-test:
+test: ## run unit tests
 	go test ./... -cover
 
 test-e2e:

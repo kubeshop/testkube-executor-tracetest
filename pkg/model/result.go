@@ -35,3 +35,18 @@ func (r *Result) GetStatus() *testkube.ExecutionStatus {
 func (r *Result) IsSuccessful() bool {
 	return !strings.Contains(r.Output, FAILED_TEST_ICON)
 }
+
+func (r *Result) ToSuccessfulExecutionResult() testkube.ExecutionResult {
+	return testkube.ExecutionResult{
+		Output: r.GetOutput(),
+		Status: r.GetStatus(),
+	}
+}
+
+func (r *Result) ToFailedExecutionResult(err error) testkube.ExecutionResult {
+	return testkube.ExecutionResult{
+		ErrorMessage: r.GetOutput(),
+		Output:       r.GetOutput(),
+		Status:       r.GetStatus(),
+	}
+}

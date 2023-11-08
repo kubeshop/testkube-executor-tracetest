@@ -6,21 +6,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kubeshop/testkube-executor-tracetest/pkg/command"
 	"github.com/kubeshop/testkube-executor-tracetest/pkg/model"
 	"github.com/kubeshop/testkube/pkg/api/v1/testkube"
 	"github.com/kubeshop/testkube/pkg/envs"
-	"github.com/kubeshop/testkube/pkg/executor"
 	"github.com/kubeshop/testkube/pkg/executor/content"
 	outputPkg "github.com/kubeshop/testkube/pkg/executor/output"
 	"github.com/kubeshop/testkube/pkg/executor/runner"
 	"github.com/kubeshop/testkube/pkg/executor/secret"
 	"github.com/kubeshop/testkube/pkg/ui"
 )
-
-const TRACETEST_ENDPOINT_VAR = "TRACETEST_ENDPOINT"
-const TRACETEST_OUTPUT_ENDPOINT_VAR = "TRACETEST_OUTPUT_ENDPOINT"
-const TRACETEST_TOKEN_VAR = "TRACETEST_TOKEN"
 
 func NewRunner() (*TracetestRunner, error) {
 	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Preparing Runner", ui.IconTruck))
@@ -31,66 +25,52 @@ func NewRunner() (*TracetestRunner, error) {
 	}
 
 	return &TracetestRunner{
-		Fetcher: content.NewFetcher(""),
-		Params:  params,
+		Fetcher:       content.NewFetcher(""),
+		Params:        params,
+		coreExecutor:  &tracetestCoreExecutor{},
+		cloudExecutor: &tracetestCloudExecutor{},
 	}, nil
 }
 
 type TracetestRunner struct {
-	Fetcher content.ContentFetcher
-	Params  envs.Params
+	Fetcher       content.ContentFetcher
+	Params        envs.Params
+	coreExecutor  TracetestCLIExecutor
+	cloudExecutor TracetestCLIExecutor
 }
 
-func (r *TracetestRunner) Run(execution testkube.Execution) (result testkube.ExecutionResult, err error) {
+type TracetestCLIExecutor interface {
+	RequiredEnvVars() []string
+	HasEnvVarsDefined(*secret.EnvManager) bool
+	Execute(*secret.EnvManager, testkube.Execution, string) (model.Result, error)
+}
+
+func (r *TracetestRunner) Run(execution testkube.Execution) (testkube.ExecutionResult, error) {
 	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Preparing test run", ui.IconTruck))
 
 	envManager := secret.NewEnvManagerWithVars(execution.Variables)
 	envManager.GetVars(envManager.Variables)
 
-	// Get TRACETEST_ENDPOINT from execution variables
-	tracetestEndpoint, err := getVariable(envManager, TRACETEST_ENDPOINT_VAR)
-	if err != nil {
-		outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: TRACETEST_ENDPOINT variable was not found", ui.IconCross))
-		return result, err
-	}
-
-	// Get TRACETEST_OUTPUT_ENDPOINT from execution variables
-	tracetestOutputEndpoint, err := getVariable(envManager, TRACETEST_OUTPUT_ENDPOINT_VAR)
-	if err != nil {
-		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_OUTPUT_ENDPOINT variable was not found, assuming empty value")
-	}
-
-	tracetestToken, err := getVariable(envManager, TRACETEST_TOKEN_VAR)
-	if err != nil {
-		outputPkg.PrintLog("[TracetestRunner]: TRACETEST_TOKEN variable was not found, assuming empty value")
-	}
-
 	// Get execution content file path
 	testFilePath, err := getContentPath(r.Params.DataDir, execution.Content, r.Fetcher)
 	if err != nil {
 		outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Error fetching the content file", ui.IconCross))
-		return result, err
+		return testkube.ExecutionResult{}, err
 	}
 
-	var output []byte
-	if tracetestToken == "" {
-		output, err = executeTestWithTracetestCore(envManager, execution, testFilePath, tracetestEndpoint)
-	} else {
-		output, err = executeTestWithTracetestCloud(envManager, execution, testFilePath, tracetestToken)
-	}
-
-	runResult := model.Result{Output: string(output), ServerEndpoint: tracetestEndpoint, OutputEndpoint: tracetestOutputEndpoint}
-
+	// Execute a test
+	cliExecutor, err := r.getCLIExecutor(envManager)
 	if err != nil {
-		result.ErrorMessage = runResult.GetOutput()
-		result.Output = runResult.GetOutput()
-		result.Status = testkube.ExecutionStatusFailed
-		return result, nil
+		return testkube.ExecutionResult{}, err
 	}
 
-	result.Output = runResult.GetOutput()
-	result.Status = runResult.GetStatus()
-	return result, nil
+	// Execute test and format output
+	result, err := cliExecutor.Execute(envManager, execution, testFilePath)
+	if err != nil {
+		return result.ToFailedExecutionResult(err), err
+	}
+
+	return result.ToSuccessfulExecutionResult(), nil
 }
 
 // GetType returns runner type
@@ -98,41 +78,40 @@ func (r *TracetestRunner) GetType() runner.Type {
 	return runner.TypeMain
 }
 
-func executeTestWithTracetestCloud(envManager *secret.EnvManager, execution testkube.Execution, testFilePath, tracetestToken string) ([]byte, error) {
-	// setup config with API key
-	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Configuring Tracetest CLI with Token", ui.IconTruck))
-	_, err := command.Run("tracetest", "configure", "--token", tracetestToken)
-	if err != nil {
-		return nil, err
+func (r *TracetestRunner) getCLIExecutor(envManager *secret.EnvManager) (TracetestCLIExecutor, error) {
+	if r.cloudExecutor.HasEnvVarsDefined(envManager) {
+		return r.cloudExecutor, nil
 	}
 
-	// Prepare args for test run command
-	args := []string{
-		"run", "test", "--file", testFilePath, "--output", "pretty",
+	if r.coreExecutor.HasEnvVarsDefined(envManager) {
+		return r.coreExecutor, nil
 	}
-	// Pass additional execution arguments to tracetest
-	args = append(args, execution.Args...)
 
-	// Run tracetest test from definition file
-	return executor.Run("", "tracetest", envManager, args...)
-}
-
-func executeTestWithTracetestCore(envManager *secret.EnvManager, execution testkube.Execution, testFilePath, tracetestEndpoint string) ([]byte, error) {
-	// Prepare args for test run command
-	args := []string{
-		"run", "test", "--server-url", tracetestEndpoint, "--file", testFilePath, "--output", "pretty",
-	}
-	// Pass additional execution arguments to tracetest
-	args = append(args, execution.Args...)
-
-	// Run tracetest test from definition file
-	return executor.Run("", "tracetest", envManager, args...)
+	outputPkg.PrintLog(fmt.Sprintf("%s [TracetestRunner]: Could not find variables to run the test with Tracetest or Tracetest Cloud.", ui.IconCross))
+	outputPkg.PrintLog(fmt.Sprintf("[TracetestRunner]: Please define the [%s] variables to run a test with Tracetest", strings.Join(r.cloudExecutor.RequiredEnvVars(), ", ")))
+	outputPkg.PrintLog(fmt.Sprintf("[TracetestRunner]: Or define the [%s] variables to run a test with Tracetest Core", strings.Join(r.coreExecutor.RequiredEnvVars(), ", ")))
+	return nil, fmt.Errorf("could not find variables to run the test with Tracetest or Tracetest Cloud")
 }
 
 // Get variable from EnvManager
 func getVariable(envManager *secret.EnvManager, variableName string) (string, error) {
+	return getVariableWithWarning(envManager, variableName, true)
+}
+
+func getOptionalVariable(envManager *secret.EnvManager, variableName string) (string, error) {
+	return getVariableWithWarning(envManager, variableName, false)
+}
+
+func getVariableWithWarning(envManager *secret.EnvManager, variableName string, required bool) (string, error) {
 	v, ok := envManager.Variables[variableName]
+
+	warningMessage := fmt.Sprintf("%s [TracetestRunner]: %s variable was not found", ui.IconCross, variableName)
+	if !required {
+		warningMessage = fmt.Sprintf("[TracetestRunner]: %s variable was not found, assuming empty value", variableName)
+	}
+
 	if !ok {
+		outputPkg.PrintLog(warningMessage)
 		return "", fmt.Errorf(variableName + " variable was not found")
 	}
 
@@ -144,7 +123,7 @@ func getContentPath(dataDir string, content *testkube.TestContent, fetcher conte
 	// Check that the data dir exists
 	_, err := os.Stat(dataDir)
 	if errors.Is(err, os.ErrNotExist) {
-		return "", err
+		return "", fmt.Errorf("Data directory '%s' does not exist", dataDir)
 	}
 
 	// Fetch execution content to file
