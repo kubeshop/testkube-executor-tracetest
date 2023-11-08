@@ -11,7 +11,7 @@ import (
 
 func TestRun(t *testing.T) {
 
-	t.Run("runner should return error if Tracetest endpoint is not provided", func(t *testing.T) {
+	t.Run("runner should fail if no env var is provided", func(t *testing.T) {
 		// given
 		runner, err := runner.NewRunner()
 		require.NoError(t, err)
