@@ -11,7 +11,7 @@
     }
   },
   "content": {
-    "uri": "https://raw.githubusercontent.com/kubeshop/pokeshop/master/tracetest/tests/list.yaml",
+    "uri": "https://raw.githubusercontent.com/kubeshop/testkube-executor-tracetest/update/tracest-cloud-support/local-dev/test.yaml",
     "type": "file-uri"
   }
 }
