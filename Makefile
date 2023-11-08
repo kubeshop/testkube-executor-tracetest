@@ -20,16 +20,9 @@ docker-build: ## build docker image
 test: ## run unit tests
 	go test ./... -cover
 
-test-e2e:
-	go test --tags=e2e -v ./test/e2e
-
-test-e2e-namespace:
-	NAMESPACE=$(NAMESPACE) go test --tags=e2e -v  ./test/e2e
-
-cover:
+cover: ## run coverage tests
 	@go test -failfast -count=1 -v -tags test  -coverprofile=./testCoverage.txt ./... && go tool cover -html=./testCoverage.txt -o testCoverage.html && rm ./testCoverage.txt
 	open testCoverage.html
-
 
 version-bump: version-bump-patch
 
