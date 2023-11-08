@@ -4,14 +4,14 @@
   "name": "tracetest-pokeshop-execution",
   "number": 1,
   "variables": {
-    "TRACETEST_ENDPOINT": {
+    "TRACETEST_ORGANIZATION": {
       "name": "TRACETEST_ENDPOINT",
       "value": "http://localhost:11633",
       "type": "basic"
     }
   },
   "content": {
-    "uri": "https://raw.githubusercontent.com/kubeshop/testkube-executor-tracetest/update/tracest-cloud-support/local-dev/test.yaml",
+    "uri": "https://raw.githubusercontent.com/kubeshop/testkube-executor-tracetest/update/tracest-cloud-support/local-dev/test-core.yaml",
     "type": "file-uri"
   }
 }

@@ -67,7 +67,7 @@ func (r *TracetestRunner) Run(execution testkube.Execution) (testkube.ExecutionR
 	// Execute test and format output
 	result, err := cliExecutor.Execute(envManager, execution, testFilePath)
 	if err != nil {
-		return result.ToFailedExecutionResult(err), err
+		return result.ToFailedExecutionResult(err), nil
 	}
 
 	return result.ToSuccessfulExecutionResult(), nil
