@@ -1,0 +1,27 @@
+{
+  "testName": "tracetest-pokeshop",
+  "testType": "tracetest/test",
+  "name": "tracetest-pokeshop-execution",
+  "number": 1,
+  "variables": {
+    "TRACETEST_ORGANIZATION": {
+      "name": "TRACETEST_ORGANIZATION",
+      "value": "ttorg_1cbdabae7b8fd1c6",
+      "type": "basic"
+    },
+    "TRACETEST_ENVIRONMENT": {
+      "name": "TRACETEST_ENVIRONMENT",
+      "value": "ttenv_44ce23147597d2b3",
+      "type": "basic"
+    },
+    "TRACETEST_TOKEN": {
+      "name": "TRACETEST_TOKEN",
+      "value": "tttoken_36705284014b6b4d",
+      "type": "basic"
+    }
+  },
+  "content": {
+    "uri": "https://raw.githubusercontent.com/kubeshop/testkube-executor-tracetest/update/tracest-cloud-support/local-dev/test-core.yaml",
+    "type": "file-uri"
+  }
+}
