@@ -6,17 +6,17 @@
   "variables": {
     "TRACETEST_ORGANIZATION": {
       "name": "TRACETEST_ORGANIZATION",
-      "value": "ttorg_1cbdabae7b8fd1c6",
+      "value": "your-org",
       "type": "basic"
     },
     "TRACETEST_ENVIRONMENT": {
       "name": "TRACETEST_ENVIRONMENT",
-      "value": "ttenv_44ce23147597d2b3",
+      "value": "your-env",
       "type": "basic"
     },
     "TRACETEST_TOKEN": {
       "name": "TRACETEST_TOKEN",
-      "value": "tttoken_36705284014b6b4d",
+      "value": "your-token",
       "type": "basic"
     }
   },
