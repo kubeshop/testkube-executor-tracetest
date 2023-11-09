@@ -40,7 +40,7 @@ func (e *tracetestCoreExecutor) Execute(envManager *secret.EnvManager, execution
 		"run", "test", "--server-url", tracetestEndpoint, "--file", testFilePath, "--output", "pretty",
 	}
 	// Pass additional execution arguments to tracetest
-	args = append(args, execution.Args...)
+	// args = append(args, execution.Args...)
 
 	// Run tracetest test from definition file
 	output, err := executor.Run("", "tracetest", envManager, args...)
